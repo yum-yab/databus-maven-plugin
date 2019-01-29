@@ -20,20 +20,26 @@
  */
 package org.dbpedia.databus
 
-import java.nio.charset.StandardCharsets
-
 import org.dbpedia.databus.lib._
 import org.dbpedia.databus.shared._
-import org.dbpedia.databus.shared.helpers.conversions._
-import org.dbpedia.databus.shared.rdf.conversions._
+//import org.dbpedia.databus.shared.authentification.AccountHelpers
+
 import org.apache.maven.plugin.{AbstractMojo, MojoExecutionException}
-import org.apache.maven.plugins.annotations.{LifecyclePhase, Mojo}
+import org.apache.maven.plugins.annotations.{LifecyclePhase, Mojo, Parameter}
 import org.dbpedia.databus.shared.authentification.AccountHelpers
+
 import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 
 @Mojo(name = "deploy", defaultPhase = LifecyclePhase.DEPLOY, threadSafe = true)
 class Deploy extends AbstractMojo with Properties with SigningHelpers {
+
+  @Parameter(property = "databus.deployRepoURL", defaultValue = "https://databus.dbpedia.org/repo")
+  val deployRepoURL: String = ""
+
+  @Parameter(property = "databus.allowOverwriteOnDeploy", defaultValue = "true")
+  val allowOverwriteOnDeploy: Boolean = true
 
   @throws[MojoExecutionException]
   override def execute(): Unit = {
@@ -102,13 +108,15 @@ class Deploy extends AbstractMojo with Properties with SigningHelpers {
       s"""PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>
          |PREFIX dct: <http://purl.org/dc/terms/>
          |
-         |SELECT ?name ?version ?date ?webid ?account {
+         |SELECT ?name ?version ?date ?webid ?issuedate ?account {
          |Graph <${datasetIdentifier}> {
          |  ?dataset a dataid:Dataset .
          |  ?dataset rdfs:label ?name .
          |  ?dataset dct:hasVersion ?version .
          |  ?dataset dct:issued ?date .
          |  ?dataset dataid:associatedAgent ?webid .
+         |  ?dataid a dataid:DataId .
+         |  ?dataid dct:issued ?issuedate .
          |  }
          |# resides in other graph
          |OPTIONAL {?webid foaf:account ?account }

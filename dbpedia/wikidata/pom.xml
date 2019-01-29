@@ -2,41 +2,41 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
+    <!-- the super-pom deactivates software compilation and configures the plugin to run in default phases -->
+    <parent>
+        <groupId>org.dbpedia.databus</groupId>
+        <artifactId>super-pom</artifactId>
+        <version>1.3-SNAPSHOT</version>
+    </parent>
     <groupId>wikidata</groupId>
-    <artifactId>common-metadata</artifactId>
+    <artifactId>group-metadata</artifactId>
     <packaging>pom</packaging>
-    <version>2018.10.01</version>
+    <version>2018.11.30</version>
 
     <modules>
-        <module>wikidata-alias</module>
-        <module>wikidata-description</module>
-        <module>wikidata-geo-coordinates</module>
-        <module>wikidata-images</module>
-        <module>wikidata-instance-types</module>
-        <module>wikidata-instance-types-transitive</module>
-        <module>wikidata-labels</module>
-        <module>wikidata-mappingbased-literals</module>
-        <module>wikidata-mappingbased-objects</module>
-        <module>wikidata-mappingbased-properties</module>
-        <module>wikidata-ontology-subclassof</module>
-        <module>wikidata-page-ids</module>
-        <module>wikidata-page-length</module>
-        <module>wikidata-properties</module>
-        <module>wikidata-raw</module>
-        <module>wikidata-redirects</module>
-        <module>wikidata-references</module>
-        <module>wikidata-revision-ids</module>
-        <module>wikidata-revision-uris</module>
-        <module>wikidata-sameas-all-wikis</module>
-        <module>wikidata-sameas-external</module>
-        <module>wikidata-sameas-wikidata</module>
-        <module>wikidata-template-redirects</module>
-        <module>wikidata-transitive-redirects</module>
-        <module>wikidata-debug-duplicate-iri-split</module>
-        <module>wikidata-debug-rmapping-errors</module>
-        <module>wikidata-debug-type-like-statements</module>
+        <module>alias</module>
+        <module>description</module>
+        <module>geo-coordinates</module>
+        <module>images</module>
+        <module>instance-types</module>
+        <module>labels</module>
+        <module>mappingbased-literals</module>
+        <module>mappingbased-objects-uncleaned</module>
+        <module>mappingbased-properties-reified</module>
+        <module>ontology-subclassof</module>
+        <module>page</module>
+        <module>properties-reified</module>
+        <module>raw</module>
+        <module>redirects</module>
+        <module>references</module>
+        <module>revision</module>
+        <module>sameas-all-wikis</module>
+        <module>sameas-external</module>
+        <module>sameas-wikidata</module>
+        <module>debug</module>
     </modules>
+
+    <!-- needed 511 minutes for 110GB -->
 
     <properties>
         <databus.tryVersionAsIssuedDate>true</databus.tryVersionAsIssuedDate>
@@ -51,152 +51,88 @@
         <databus.maintainer>https://alismayilov.github.io/webid-ali.ttl#this</databus.maintainer>
         <databus.license>http://purl.oclc.org/NET/rdflicense/cc-by3.0</databus.license>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <databus.changelog>
-            * 2018.07.20 to current - were created as new modular releases, some issues remain:
-	    ** corrupted files: 
-		./wikidata-redirects/src/main/databus/2018.10.01/wikidata-redirects.ttl.bz2		 
-		./wikidata-debug-type-like-statements/src/main/databus/2018.10.01/wikidata-debug-type-like-statements.ttl.bz2
-            ** we used rapper 2.0.14 to parse and `LC_ALL=C sort` to sort and ascii2uni -a U to unescape unicdoe
-            characters
-            ** link to Wikimedia dump version is missing
-	    2018.10.01 - deleted due to bzip2 non-recoverable bad blocks
-        </databus.changelog>
-        <databus.docfooter>
-            DBpedia is a community project, help us with this dataset:
-            * improve the software at: https://github.com/dbpedia/extraction-framework
-            * improve this documentation in the pom.xml at
-            https://github.com/dbpedia/databus-maven-plugin/tree/master/dbpedia/wikidata/pom.xml
+        <databus.changelog><![CDATA[
+# Changelog
+## 2018.07.20 to 2018.11.30
+* were created as new modular releases, some issues remain
+* mappingbased objects are not cleaned
+* we used rapper 2.0.14 to parse and `LC_ALL=C sort` to sort and ascii2uni -a U to unescape unicdoe
+characters
+* link to Wikimedia dump version is missing
+## 2018.10.01
+* deleted due to bzip2 non-recoverable bad blocks
+        ]]></databus.changelog>
+        <databus.docfooter><![CDATA[
+## How to contribute
+TODO bad docu, i.e. missing links where to add the mappings, paper, etc.
 
-            TODO bad docu, i.e. missing links where to add te mappings, paper, etc.
-            Origin:
-            This dataset was extracted using the wikidata-dumps available on
-            https://www.wikidata.org/wiki/Wikidata:Database_download
-            using the DBpedia Extraction-Framework available at https://github.com/dbpedia/extraction-framework
-            For more technical information on how these datasets were generated, please visit http://dev.dbpedia.org
-        </databus.docfooter>
+DBpedia is a community project, help us with this dataset:
+* improve the software at: https://github.com/dbpedia/extraction-framework
+* improve this documentation in the pom.xml at
+https://github.com/dbpedia/databus-maven-plugin/tree/master/dbpedia/wikidata/pom.xml
+
+
+## Origin:
+This dataset was extracted using the wikidata-dumps available on
+https://www.wikidata.org/wiki/Wikidata:Database_download
+using the DBpedia Extraction-Framework available at https://github.com/dbpedia/extraction-framework
+For more technical information on how these datasets were generated, please visit http://dev.dbpedia.org
+        ]]></databus.docfooter>
 
     </properties>
 
-    <!-- we will move to maven central soon, this is the dev maven repo-->
-    <pluginRepositories>
-        <pluginRepository>
+    <!-- currently still needed to find the super-pom, once the super-pom is in maven central,
+     this can be removed as well -->
+    <repositories>
+        <repository>
             <id>archiva.internal</id>
             <name>Internal Release Repository</name>
             <url>http://databus.dbpedia.org:8081/repository/internal</url>
-        </pluginRepository>
-        <pluginRepository>
+        </repository>
+        <repository>
             <id>archiva.snapshots</id>
             <name>Internal Snapshot Repository</name>
             <url>http://databus.dbpedia.org:8081/repository/snapshots</url>
             <snapshots>
                 <updatePolicy>always</updatePolicy>
             </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
+        </repository>
+    </repositories>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.dbpedia.databus</groupId>
-                <artifactId>databus-maven-plugin</artifactId>
-                <version>1.3-SNAPSHOT</version>
-                <executions>
-                    <execution>
-                        <id>validate</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>validate</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>metadata</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>metadata</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>package-export</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>package-export</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>deploy</id>
-                        <phase>deploy</phase>
-                        <goals>
-                            <goal>deploy</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-install-plugin</artifactId>
-                <version>2.5.2</version>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <version>2.8.2</version>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.commonjava.maven.plugins</groupId>
-                <artifactId>directory-maven-plugin</artifactId>
-                <version>0.3.1</version>
-                <executions>
-                    <execution>
-                        <id>directories</id>
-                        <goals>
-                            <goal>highest-basedir</goal>
-                        </goals>
-                        <phase>initialize</phase>
+
+    <profiles>
+        <profile>
+            <!--
+            run with:
+            mvn exec:exec -Prapandsort
+            runs over "*/src/main/databus/*/*.ttl.bz2"
+            lbzip2 -dc $file | rapper -i ntriples -O - - file |  ascii2uni -a U | LC_ALL=C sort -u -T tmpfolder  |  lbzip2
+
+            -->
+            <id>rapandsort</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>1.3.2</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                            </execution>
+                        </executions>
                         <configuration>
-                            <property>databus.rootProjectDir</property>
+                            <executable>../rapandsort.sh</executable>
+                            <arguments>
+                                <argument>${project.artifactId}</argument>
+                            </arguments>
                         </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
- <profiles>
-    <profile>
-<!--
-run with:
-mvn exec:exec -Prapandsort
-runs over "*/src/main/databus/*/*.ttl.bz2"
-lbzip2 -dc $file | rapper -i ntriples -O - - file |  ascii2uni -a U | LC_ALL=C sort -u -T tmpfolder  |  lbzip2
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
 
--->
-      <id>rapandsort</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>1.3.2</version>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-              </execution>
-            </executions>
-            <configuration>
-              <executable>../rapandsort.sh</executable>
-              <arguments><argument>${project.artifactId}</argument></arguments>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-  </profiles>
+    </profiles>
 </project>

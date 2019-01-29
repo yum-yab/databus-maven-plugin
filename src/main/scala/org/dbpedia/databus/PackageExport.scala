@@ -22,12 +22,10 @@ package org.dbpedia.databus
 
 import org.dbpedia.databus.lib._
 import org.dbpedia.databus.shared.signing
-
 import better.files._
 import org.apache.jena.rdf.model.{Model, ModelFactory}
 import org.apache.maven.plugin.{AbstractMojo, MojoExecutionException}
-import org.apache.maven.plugins.annotations.{LifecyclePhase, Mojo}
-
+import org.apache.maven.plugins.annotations.{LifecyclePhase, Mojo, Parameter}
 import java.io.{File, FileWriter}
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
@@ -35,62 +33,79 @@ import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 @Mojo(name = "package-export", defaultPhase = LifecyclePhase.PACKAGE)
 class PackageExport extends AbstractMojo with Properties {
 
+  /**
+    * The parselogs are written to ${databus.pluginDirectory}/parselogs and then packaged with the data
+    * We keep the parselogs in a separate file, because they can be quite large (repeating the triples that have errors)
+    */
+  @Parameter(property = "databus.includeParseLogs", defaultValue = "true")
+  val includeParseLogs: Boolean = true
+
+  @Parameter(property = "databus.deactivateDownloadUrl", defaultValue = "false")
+  val deactivateDownloadUrl = false
 
   @throws[MojoExecutionException]
   override def execute(): Unit = {
     //skip the parent module
-    if(isParent()) {
+    if (isParent()) {
       getLog.info(s"skipping parent ${artifactId}")
       return
+    }
+
+
+    if (!dataIdFile.isRegularFile) {
+
+      val emptyVersion = if (getListOfInputFiles().isEmpty) s"* ${version} does not contain any files\n" else ""
+
+      getLog.warn(s"${dataIdFile} not found for ${artifactId}, can not package\n" +
+        s"fix with:\n" +
+        s"* running mvn prepare-package or mvn databus:metadata first\n" + emptyVersion)
+      System.exit(-1)
     }
 
     // for each module copy all files to target
     getListOfInputFiles().foreach { inputFile =>
 
-      if(!dataIdFile.isRegularFile){
-        getLog.error(s"${dataIdFile} not found, can not package, fix with running mvn prepare-package or mvn databus:metadata first" )
-        System.exit(-1)
-      }
-
       val df = Datafile(inputFile)(getLog)
-
       val packageTarget = locations.packageTargetDirectory / df.finalBasename(params.versionToInsert)
 
-      if(packageTarget.isRegularFile) {
+      // check if files exist already
+      if (packageTarget.isRegularFile) {
 
         val targetHash = signing.sha256Hash(packageTarget)
-
         val sourceHash = signing.sha256Hash(inputFile.toScala)
 
-        if(targetHash != sourceHash) {
-
+        //overwrite if different, else keep
+        if (targetHash != sourceHash) {
           inputFile.toScala.copyTo(packageTarget, overwrite = true)
-          getLog.info("packaged: " + packageTarget.name)
+          getLog.info("packaged (in overwrite mode): " + packageTarget.name)
         } else {
-
           getLog.info("skipped (same file): " + packageTarget.name)
         }
 
       } else {
-
         inputFile.toScala.copyTo(packageTarget, overwrite = true)
         getLog.info("packaged: " + packageTarget.name)
       }
     }
 
     //Parselogs
-    if(includeParseLogs && getParseLogFile().exists()) {
+    if (includeParseLogs && getParseLogFile().exists()) {
       val packageTarget = locations.packageTargetDirectory / getParseLogFile().getName
       getParseLogFile().toScala.copyTo(packageTarget, true)
       getLog.info("packaged: " + packageTarget.name)
     }
 
-    val baseResolvedDataId = resolveBaseForRDFFile(dataIdFile, dataIdDownloadLocation)
+    if (deactivateDownloadUrl) {
+      //copy
+      Files.copy(dataIdFile.toJava.toPath, dataIdPackageTarget.toJava.toPath)
 
-    dataIdPackageTarget.writeByteArray(baseResolvedDataId)
-
+    } else {
+      // resolve
+      val baseResolvedDataId = resolveBaseForRDFFile(dataIdFile, dataIdDownloadLocation)
+      dataIdPackageTarget.writeByteArray((Properties.logo + "\n").getBytes())
+      dataIdPackageTarget.appendByteArray(baseResolvedDataId)
+    }
     getLog.info("packaged: " + dataIdPackageTarget.name)
-
     getLog.info(s"package written to ${packageDirectory}")
   }
 }

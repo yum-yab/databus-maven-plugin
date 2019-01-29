@@ -68,12 +68,11 @@ class PrepareMetadata extends AbstractMojo with Properties with SigningHelpers w
     }
 
     val dataIdCollect: Model = ModelFactory.createDefaultModel
-
-
     getLog.info(s"looking for data files in: ${dataInputDirectory.getCanonicalPath}")
     getLog.info(s"Found ${getListOfInputFiles().size} files:\n${
-      getListOfInputFiles().mkString(", ").replaceAll(dataInputDirectory.getCanonicalPath + "/" + artifactId, "")}")
-    getLog.info("collecting metadata for each file (from parameters in pom.xml and from file itself)")
+      getListOfInputFiles().mkString(", ").replaceAll(dataInputDirectory.getCanonicalPath + "/" + artifactId, "")
+    }")
+    getLog.info(s"collecting metadata for each file (from parameters in pom.xml, from ${artifactId}/${markdown.getName} and from the file itself)")
     getListOfInputFiles().foreach(datafile => {
       processFile(datafile, dataIdCollect)
 
@@ -87,93 +86,101 @@ class PrepareMetadata extends AbstractMojo with Properties with SigningHelpers w
 
     getLog.info(s"writing metadata to ${getDataIdFile()}")
     if (!dataIdCollect.isEmpty) {
-      {
-        implicit val editContext = dataIdCollect
 
-        // add DataId
-        /**
-          * <http://downloads.dbpedia.org/2016-10/core-i18n/en/2016-10_dataid_en.ttl>
-          * ? dataid:underAuthorization  <http://downloads.dbpedia.org/2016-10/core-i18n/en/2016-10_dataid_en.ttl?auth=maintainerAuthorization> , <http://downloads.dbpedia.org/2016-10/core-i18n/en/2016-10_dataid_en.ttl?auth=creatorAuthorization> , <http://downloads.dbpedia.org/2016-10/core-i18n/en/2016-10_dataid_en.ttl?auth=contactAuthorization> ;
-          * dc:modified                "2017-07-06"^^xsd:date ;
-          * foaf:primaryTopic          <http://dbpedia.org/dataset/main_dataset?lang=en&dbpv=2016-10> .
-          */
+      implicit val editContext = dataIdCollect
 
-        val dataIdResource = dataIdCollect.createResource("")
-        dataIdResource.addProperty(dcterms.title, s"DataID metadata for ${groupId}/${artifactId}", "en")
-        dataIdResource.addProperty(RDFS.`label`, s"DataID metadata for ${groupId}/${artifactId}", "en")
-        dataIdResource.addProperty(dcterms.hasVersion, Properties.pluginVersion)
-        dataIdResource.addProperty(RDF.`type`, dataid.DataId)
-        dataIdResource.addProperty(RDFS.`comment`,
-          s"""Metadata created by the DBpedia Databus Maven Plugin: https://github.com/dbpedia/databus-maven-plugin (Version ${Properties.pluginVersion})
-             |The DataID ontology is a metadata omnibus, which can be extended to be interoperable with all metadata formats
-             |Note that the metadata (the dataid.ttl file) is always CC-0, the files are licensed individually
-             |Metadata created by ${publisher}
-          """.stripMargin)
+      // add DataId
+      addDataId(dataIdCollect)
 
-        dataIdResource.addProperty(dcterms.issued, ISO_INSTANT_NO_NANO.format(params.invocationTime).asTypedLiteral(XSDdateTime))
-        dataIdResource.addProperty(dcterms.license, "http://purl.oclc.org/NET/rdflicense/cc-zero1.0".asIRI)
-        dataIdResource.addProperty(dcterms.conformsTo, global.dataid.namespace)
-        dataIdResource.addProperty(dataid.associatedAgent, publisher.toString.asIRI)
-        dataIdResource.addProperty(dcterms.publisher, publisher.toString.asIRI)
+      // add dataset metadata
+      val datasetResource = dataIdCollect.createResource(s"#Dataset")
+      datasetResource.addProperty(RDF.`type`, dataid.Dataset)
+      addBasicPropertiesToResource(dataIdCollect, datasetResource)
 
-        // add dataset metadata
-        val datasetResource = dataIdCollect.createResource(s"#Dataset")
-        datasetResource.addProperty(RDF.`type`, dataid.Dataset)
-        addBasicPropertiesToResource(dataIdCollect, datasetResource)
-        if (changelog.nonEmpty) {
-          datasetResource.addProperty(dataid.changelog, changelog.asPlainLiteral)
+      //creating documentation for dataset resource
+      datasetResource.addProperty(dcterms.description, (params.description + "\n\n" + docfooter.trim).asPlainLiteral)
+
+      //changelog
+      if (changelog.nonEmpty) {
+        datasetResource.addProperty(dataid.changelog, changelog.trim.asPlainLiteral)
+      }
+
+      //match WebId to Account Name
+      AccountHelpers.getAccountOption(publisher) match {
+        case Some(account) => {
+          val groupIRI = s"${account.getURI}/${groupId}".asIRI
+          val artifactIRI = s"${account.getURI}/${groupId}/${artifactId}".asIRI
+          val versionIRI = s"${account.getURI}/${groupId}/${artifactId}/${version}".asIRI
+          groupIRI.addProperty(RDF.`type`, dataid.Group)
+          artifactIRI.addProperty(RDF.`type`, dataid.Artifact)
+          versionIRI.addProperty(RDF.`type`, dataid.Version)
+
+          datasetResource.addProperty(dataid.groupId, groupIRI)
+          datasetResource.addProperty(dataid.artifact, artifactIRI)
+          datasetResource.addProperty(dataid.version, versionIRI)
         }
+        case None => {
 
-        /**
-          * match WebId to Account Name
-          */
-        AccountHelpers.getAccountOption(publisher) match {
-
-          case Some(account) => {
-
-            val group = s"${account.getURI}/${groupId}".asIRI
-            val artifact = s"${account.getURI}/${groupId}/${artifactId}".asIRI
-            val versionIRI = s"${account.getURI}/${groupId}/${artifactId}/${version}".asIRI
-            group.addProperty(RDF.`type`, dataid.Group)
-            artifact.addProperty(RDF.`type`, dataid.Artifact)
-            versionIRI.addProperty(RDF.`type`, dataid.Version)
-
-            datasetResource.addProperty(dataid.groupId, group)
-            datasetResource.addProperty(dataid.artifact, artifact)
-            datasetResource.addProperty(dataid.version, versionIRI)
-          }
-
-          case None => {
-
-            datasetResource.addProperty(dataid.groupId, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
-            datasetResource.addProperty(dataid.artifact, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
-            getLog.warn("Not registered, Dataset URIs will not work, please register at https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED")
-          }
-        }
-
-        /**
-          * adding wasDerivedFrom other datasets
-          */
-        params.wasDerivedFrom.foreach { case ScalaBaseEntity(artifact, version) =>
-
-          val baseEntityBlankNode = editContext.createResource().tap { baseEntityRes =>
-
-            baseEntityRes.addProperty(dataid.artifact, artifact.toString.asIRI)
-            baseEntityRes.addProperty(dcterms.hasVersion, version)
-          }
-
-          datasetResource.addProperty(prov.wasDerivedFrom, baseEntityBlankNode)
+          datasetResource.addProperty(dataid.groupId, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
+          datasetResource.addProperty(dataid.artifact, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
+          getLog.warn("Not registered, Dataset URIs will not work, please register at https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED")
         }
       }
+
+      // adding wasDerivedFrom other datasets
+      params.provenanceIRIs.foreach(p => {
+        datasetResource.addProperty(prov.wasDerivedFrom, p.toString.asIRI)
+      })
+
+      /*
+      params.wasDerivedFrom.foreach { case ScalaBaseEntity(artifact, version) =>
+
+        val baseEntityBlankNode = editContext.createResource().tap { baseEntityRes =>
+
+          baseEntityRes.addProperty(dataid.artifact, artifact.toString.asIRI)
+          baseEntityRes.addProperty(dcterms.hasVersion, version)
+        }
+
+        datasetResource.addProperty(prov.wasDerivedFrom, baseEntityBlankNode)
+      }*/
+
 
       //writing the metadatafile
       getDataIdFile().toScala.outputStream.foreach { os =>
         os.write((Properties.logo + "\n").getBytes)
         dataIdCollect.write(os, "turtle")
       }
-      getLog.info(s"dataid.ttl written")
+      getLog.info(s"${getDataIdFile()} written")
 
     }
+  }
+
+  def addDataId(dataIdCollect: Model): Unit = {
+
+    implicit def vocabModel = dataIdCollect
+
+    /**
+      * <http://downloads.dbpedia.org/2016-10/core-i18n/en/2016-10_dataid_en.ttl>
+      * ? dataid:underAuthorization  <http://downloads.dbpedia.org/2016-10/core-i18n/en/2016-10_dataid_en.ttl?auth=maintainerAuthorization> , <http://downloads.dbpedia.org/2016-10/core-i18n/en/2016-10_dataid_en.ttl?auth=creatorAuthorization> , <http://downloads.dbpedia.org/2016-10/core-i18n/en/2016-10_dataid_en.ttl?auth=contactAuthorization> ;
+      * dc:modified                "2017-07-06"^^xsd:date ;
+      * foaf:primaryTopic          <http://dbpedia.org/dataset/main_dataset?lang=en&dbpv=2016-10> .
+      */
+    val dataIdResource = dataIdCollect.createResource("")
+    dataIdResource.addProperty(dcterms.title, s"DataID metadata for ${groupId}/${artifactId}", "en")
+    dataIdResource.addProperty(RDFS.`label`, s"DataID metadata for ${groupId}/${artifactId}", "en")
+    dataIdResource.addProperty(dcterms.hasVersion, Properties.pluginVersion)
+    dataIdResource.addProperty(RDF.`type`, dataid.DataId)
+    dataIdResource.addProperty(RDFS.`comment`,
+      s"""Metadata created by the DBpedia Databus Maven Plugin: https://github.com/dbpedia/databus-maven-plugin (Version ${Properties.pluginVersion})
+         |The DataID ontology is a metadata omnibus, which can be extended to be interoperable with all metadata formats
+         |Note that the metadata (the dataid.ttl file) is always CC-0, the files are licensed individually
+         |Metadata created by ${publisher}""".stripMargin)
+
+    dataIdResource.addProperty(dcterms.issued, ISO_INSTANT_NO_NANO.format(params.invocationTime).asTypedLiteral(XSDdateTime))
+    dataIdResource.addProperty(dcterms.license, "http://purl.oclc.org/NET/rdflicense/cc-zero1.0".asIRI)
+    dataIdResource.addProperty(dcterms.conformsTo, global.dataid.namespace)
+    dataIdResource.addProperty(dataid.associatedAgent, publisher.toString.asIRI)
+    dataIdResource.addProperty(dcterms.publisher, publisher.toString.asIRI)
   }
 
   def processFile(datafile: File, dataIdCollect: Model): Unit = {
