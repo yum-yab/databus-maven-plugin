@@ -38,24 +38,25 @@ import java.time.{ZoneId, ZonedDateTime}
 object DataFileToModel {
 
   val prefixes = Map(
-    "databus" -> "https://databus.dbpedia.org/",
     "dataid" -> global.dataid.namespace,
-    "dataid-ld" -> "http://dataid.dbpedia.org/ns/ld#",
-    "dataid-mt" -> "http://dataid.dbpedia.org/ns/mt#",
-    "dataid-pl" -> "http://dataid.dbpedia.org/ns/pl#",
-    "dmp" -> "http://dataid.dbpedia.org/ns/dmp#",
-    "dct" -> global.dcterms.namespace,
     "dcat" -> global.dcat.namespace,
-    "void" -> "http://rdfs.org/ns/void#",
-    "prov" -> global.prov.namespace,
-    "xsd" -> XSD.NS,
-    "owl" -> OWL.NS,
-    "foaf" -> global.foaf.namespace,
     "rdf" -> RDF.uri,
     "rdfs" -> RDFS.uri,
-    "datacite" -> "http://purl.org/spar/datacite/",
-    "spdx" -> "http://spdx.org/rdf/terms#",
-    "sd" -> "http://www.w3.org/ns/sparql-service-description#"
+    "dataid-mt" -> "http://dataid.dbpedia.org/ns/mt#",
+    "dataid-pl" -> "http://dataid.dbpedia.org/ns/pl#",
+    "dataid-cv" -> "http://dataid.dbpedia.org/ns/cv#",
+    "prov" -> global.prov.namespace,
+    "databus" -> "https://databus.dbpedia.org/",
+    "xsd" -> XSD.NS,
+    "dct" -> global.dcterms.namespace
+    //    "dataid-ld" -> "http://dataid.dbpedia.org/ns/ld#",
+    //    "dmp" -> "http://dataid.dbpedia.org/ns/dmp#",
+    //    "void" -> "http://rdfs.org/ns/void#",
+    //    "owl" -> OWL.NS,
+    //    "foaf" -> global.foaf.namespace,
+    //    "datacite" -> "http://purl.org/spar/datacite/",
+    //    "spdx" -> "http://spdx.org/rdf/terms#",
+    //    "sd" -> "http://www.w3.org/ns/sparql-service-description#"
   )
 }
 
@@ -69,9 +70,9 @@ trait DataFileToModel extends Properties with Parameters {
 
     implicit val model: Model = ModelFactory.createDefaultModel
 
-    // for ((key, value) <- prefixes) {
-    //   model.setNsPrefix(key, value)
-    // }
+    for ((key, value) <- prefixes) {
+      model.setNsPrefix(key, value)
+    }
 
     /*
      main uri of dataid for SingleFile
@@ -122,12 +123,27 @@ trait DataFileToModel extends Properties with Parameters {
     mediaTypeRes.addProperty(RDF.`type`, s"${dataid_mt}MediaType".asIRI)
     singleFileResource.addProperty(dcat.mediaType, mediaTypeRes)
     mediaTypeRes.addProperty(dataid.mimetype, datafile.format.mimeType)
-    singleFileResource.addProperty(dataid.prop.formatExtension, datafile.formatExtension.asPlainLiteral)
+    singleFileResource.addProperty(dataid.formatExtension, datafile.formatExtension.asPlainLiteral)
     singleFileResource.addProperty(dataid.compression, datafile.compressionOrArchiveDesc)
 
     // content variant
     datafile.contentVariantExtensions.foreach { contentVariant =>
-      singleFileResource.addProperty(dataid.prop.contentVariant, contentVariant)
+      if (contentVariant.contains("=")) {
+        val cv = contentVariant.split("=")
+        val (key, value): (String, String) = (cv(0), cv(1))
+
+        // keeping the value part
+        singleFileResource.addProperty(dataid.contentVariant, value)
+
+        dataid.contentVariant.addProperty(RDF.`type`, OWL.DatatypeProperty)
+        singleFileResource.addProperty(dataidcv.prop.selectDynamic(key), value)
+        dataidcv.prop.selectDynamic(key).addProperty(RDFS.subPropertyOf, dataid.contentVariant)
+
+      } else {
+        singleFileResource.addProperty(dataid.contentVariant, contentVariant)
+        singleFileResource.addProperty(dataidcv.prop.tag, contentVariant)
+        dataidcv.prop.tag.addProperty(RDFS.subPropertyOf, dataid.contentVariant)
+      }
     }
   }
 

@@ -67,14 +67,19 @@ class PrepareMetadata extends AbstractMojo with Properties with SigningHelpers w
       return
     }
 
+    // prepare the buildDataidFile
+    locations.buildDataIdFile.createFileIfNotExists(true).clear()
+
+
     val dataIdCollect: Model = ModelFactory.createDefaultModel
-    getLog.info(s"looking for data files in: ${dataInputDirectory.getCanonicalPath}")
-    getLog.info(s"Found ${getListOfInputFiles().size} files:\n${
-      getListOfInputFiles().mkString(", ").replaceAll(dataInputDirectory.getCanonicalPath + "/" + artifactId, "")
+    getLog.info(s"looking for data files in: ${locations.inputVersionDirectory.pathAsString}")
+    getLog.info(s"Found ${locations.inputFileList.size} files:\n${
+      locations.inputFileList.mkString(", ").replaceAll(locations.inputVersionDirectory.pathAsString + "/" + artifactId, "")
     }")
-    getLog.info(s"collecting metadata for each file (from parameters in pom.xml, from ${artifactId}/${markdown.getName} and from the file itself)")
-    getListOfInputFiles().foreach(datafile => {
-      processFile(datafile, dataIdCollect)
+    getLog.info(s"collecting metadata for each file (from parameters in pom.xml," +
+      s" from ${artifactId}/${locations.markdownFileName} and from the file itself)")
+    locations.inputFileList.foreach(datafile => {
+      processFile(datafile.toJava, dataIdCollect)
 
     })
 
@@ -84,7 +89,6 @@ class PrepareMetadata extends AbstractMojo with Properties with SigningHelpers w
     //Option(publisher.toString.asIRI.getProperty(foaf.account)).map(_.getObject.asResource)
     //}
 
-    getLog.info(s"writing metadata to ${getDataIdFile()}")
     if (!dataIdCollect.isEmpty) {
 
       implicit val editContext = dataIdCollect
@@ -98,37 +102,41 @@ class PrepareMetadata extends AbstractMojo with Properties with SigningHelpers w
       addBasicPropertiesToResource(dataIdCollect, datasetResource)
 
       //creating documentation for dataset resource
-      datasetResource.addProperty(dcterms.description, (params.description + "\n\n" + docfooter.trim).asPlainLiteral)
+      datasetResource.addProperty(dcterms.description, (params.description + "\n\n" + documentation.trim).asPlainLiteral)
 
-      //changelog
-      if (changelog.nonEmpty) {
-        datasetResource.addProperty(dataid.changelog, changelog.trim.asPlainLiteral)
-      }
+
 
       //match WebId to Account Name
       AccountHelpers.getAccountOption(publisher) match {
         case Some(account) => {
+
+          val accountIRI = s"${account.getURI}".asIRI
           val groupIRI = s"${account.getURI}/${groupId}".asIRI
           val artifactIRI = s"${account.getURI}/${groupId}/${artifactId}".asIRI
           val versionIRI = s"${account.getURI}/${groupId}/${artifactId}/${version}".asIRI
+
+          //accountIRI.addProperty(RDF.`type`, dataid.Account)
           groupIRI.addProperty(RDF.`type`, dataid.Group)
           artifactIRI.addProperty(RDF.`type`, dataid.Artifact)
           versionIRI.addProperty(RDF.`type`, dataid.Version)
 
-          datasetResource.addProperty(dataid.groupId, groupIRI)
+          datasetResource.addProperty(dataid.account, accountIRI)
+          datasetResource.addProperty(dataid.group, groupIRI)
           datasetResource.addProperty(dataid.artifact, artifactIRI)
           datasetResource.addProperty(dataid.version, versionIRI)
         }
         case None => {
 
-          datasetResource.addProperty(dataid.groupId, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
+          datasetResource.addProperty(dataid.account, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
+          datasetResource.addProperty(dataid.group, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
           datasetResource.addProperty(dataid.artifact, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
+          datasetResource.addProperty(dataid.version, "https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED".asIRI)
           getLog.warn("Not registered, Dataset URIs will not work, please register at https://github.com/dbpedia/accounts/blob/master/README.md#ACCOUNTNEEDED")
         }
       }
 
       // adding wasDerivedFrom other datasets
-      params.provenanceIRIs.foreach(p => {
+      locations.provenanceIRIs.foreach(p => {
         datasetResource.addProperty(prov.wasDerivedFrom, p.toString.asIRI)
       })
 
@@ -146,11 +154,11 @@ class PrepareMetadata extends AbstractMojo with Properties with SigningHelpers w
 
 
       //writing the metadatafile
-      getDataIdFile().toScala.outputStream.foreach { os =>
+      locations.buildDataIdFile.outputStream.foreach { os =>
         os.write((Properties.logo + "\n").getBytes)
         dataIdCollect.write(os, "turtle")
       }
-      getLog.info(s"${getDataIdFile()} written")
+      getLog.info(s"DataId built at: ${locations.prettyPath(locations.buildDataIdFile)}")
 
     }
   }
@@ -198,7 +206,3 @@ class PrepareMetadata extends AbstractMojo with Properties with SigningHelpers w
   }
 }
 
-object PrepareMetadata {
-
-
-}

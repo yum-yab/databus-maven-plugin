@@ -20,15 +20,11 @@
  */
 package org.dbpedia.databus
 
-import better.files.{File => _, _}
 import org.apache.maven.plugin.{AbstractMojo, Mojo}
 import org.apache.maven.plugins.annotations.Parameter
 
 import java.io.File
 import java.net.URL
-import java.time.{Instant, LocalDateTime, ZoneId}
-import java.util
-import java.util.{List => JavaList}
 import org.apache.maven.plugin.logging.Log
 import org.apache.maven.settings.Settings
 
@@ -72,7 +68,7 @@ trait Properties extends Locations with Parameters with Mojo {
   val packaging: String = null
 
   @Parameter(defaultValue = "${project.build.directory}", readonly = true)
-  val mavenTargetDirectory: File = null
+  val buildDirectory: File = null
 
   @Parameter(defaultValue = "${project.build.finalName}", readonly = true)
   val finalName: String = null
@@ -80,38 +76,23 @@ trait Properties extends Locations with Parameters with Mojo {
   @Parameter(defaultValue = "${settings}", readonly = true)
   val settings: Settings = null
 
+  @Parameter(defaultValue = "${session.executionRootDirectory}", readonly = true)
+  val sessionRoot: File = null
+
 
   /**
     * Project internal parameters
     */
 
   /**
-    * pluginDirectory Default: ${project.build.directory}/databus
-    * all the generated files will be written here, i.e. parselogs, dataids, feeds
-    * the path is relative to the module, i.e. target/databus/
-    * `mvn clean` will delete all `target` folders in your project
+    * Input folder for data, defaultValue "src/main/databus/${project.version}"
+    * Each artifact (abstract dataset identity) consists of several versions of the same dataset
+    * These versions are kept in all in parallel subfolders
+    * Tipp: src/main is the maven default, if you dislike having three folders you can also use "databus/${project.version}"
     */
-  @Parameter(property = "databus.pluginDirectory", defaultValue = "${project.build.directory}/databus", required = true)
-  val pluginDirectory: File = null
-
-  /**
-    * input folder for data
-    * copy/move all your datafiles in the respective modules
-    * all files have to start with the animals of the module, i.e. src/main/databus/$artifactId_en.nt.bz2
-    */
-  @Parameter(property = "databus.dataInputDirectory", defaultValue = "src/main/databus/${project.version}", required = true)
-  val dataInputDirectory: File = null
-
-
-  @Parameter(property = "databus.markdown", defaultValue = "${project.artifactId}.md")
-  val markdown: File = null
-
-  @Parameter(property = "databus.provenanceFileSimple", defaultValue = "src/main/databus/provenance-${project.version}.list")
-  val provenanceFileSimple: File = null
-
-
-
-
+  // done, good defaults
+  @Parameter(property = "databus.inputDirectory", defaultValue = ".", required = true)
+  val inputDirectory: File = null
 
   @Parameter(property = "databus.insertVersion") val insertVersion: Boolean = true
 
@@ -120,7 +101,8 @@ trait Properties extends Locations with Parameters with Mojo {
     * properties that need to be configured by the user
     *
     */
-
+  @Parameter(property = "databus.keepRelativeURIs", defaultValue = "false")
+  val keepRelativeURIs = false
 
   /**
     * Configure downloadUrlPath, where the dataset will be deployed:
@@ -133,16 +115,17 @@ trait Properties extends Locations with Parameters with Mojo {
   val downloadUrlPath: URL = null
 
   /**
+    * Options:
+    * * aggregation ${session.executionRootDirectory}/target/databus/package/${project.groupId}/${project.artifactId}
+    * * apache /var/www/www.example.org/repo/${project.groupId}/${project.artifactId}
+    * * dbpedia example /media/bigone/25TB/www/downloads.dbpedia.org/repo/lts/${project.groupId}/$(project.artifactId)
+    * * local as repo ./
+    * *
     * DEFAULT ${session.executionRootDirectory}/target/databus/package
     * all files are copied into this directory relative to where mvn databus:package-export is run
     */
-  @Parameter(property = "databus.packageDirectory", defaultValue = "${session.executionRootDirectory}/target/databus/package/${project.groupId}", required = true)
+  @Parameter(property = "databus.packageDirectory", defaultValue = "${session.executionRootDirectory}/target/databus/repo/${project.groupId}", required = true)
   val packageDirectory: File = null
-
-
-
-
-
 
 
   /**
@@ -162,8 +145,6 @@ trait Properties extends Locations with Parameters with Mojo {
   @Parameter(property = "databus.pkcs12File", required = false)
   val pkcs12File: File = null
 
-  @Parameter(property = "databus.pkcs12password", required = false)
-  val pkcs12password = ""
 
   @Parameter(property = "databus.pkcs12serverId", defaultValue = "databus.defaultkey", required = false)
   val pkcs12serverId: String = ""
@@ -203,10 +184,8 @@ trait Properties extends Locations with Parameters with Mojo {
 
 
   //documentation
-  @Parameter(property = "databus.changelog", defaultValue = "") val changelog: String = ""
-  @Parameter(property = "databus.docfooter", defaultValue = "") val docfooter: String = ""
-
-
+  @Parameter(property = "databus.documentation", defaultValue = "")
+  val documentation: String = ""
 
 
   /**
@@ -218,69 +197,6 @@ trait Properties extends Locations with Parameters with Mojo {
     packaging.equals("pom")
   }
 
-
-  def getDataIdFile(): File = dataIdFile.toJava
-
-  def dataIdFile = getDataIdDirectory.toScala / s"dataid.ttl"
-
-  def dataIdPackageTarget = locations.packageTargetDirectory / dataIdFile.name
-
-  def dataIdDownloadLocation = downloadUrlPath.toString + getDataIdFile.getName
-
-  def getParseLogFile(): File = {
-    new File(getParselogDirectory, "/" + finalName + "_parselog.ttl")
-  }
-
-  def getDataIdDirectory: File = {
-    create(new File(pluginDirectory, "/dataid"))
-  }
-
-  def getParselogDirectory: File = {
-    create(new File(pluginDirectory, "/parselog"))
-  }
-
-
-  private def create(dir: File): File = {
-    if (!dir.exists()) {
-      dir.mkdirs()
-    }
-    dir
-  }
-
-
-  /**
-    * lists all appropriate data files, using these filters:
-    * * is a file
-    * * starts with artifactid
-    * * is not a dataid
-    * * is not a parselog
-    *
-    * @return
-    */
-  def getListOfInputFiles(): List[File] = {
-
-    if (dataInputDirectory.exists && dataInputDirectory.isDirectory) {
-
-      val dataFiles = dataInputDirectory.listFiles
-        .filter(_.isFile)
-        .filter(_.getName.startsWith(artifactId))
-        .filter(_ != getDataIdFile())
-        .filter(_ != getParseLogFile())
-        .toList
-
-      if (dataFiles.isEmpty) {
-        getLog.warn(s"no matching input files found within ${dataInputDirectory.listFiles().size} files in " +
-          s"data input directory ${dataInputDirectory.getAbsolutePath}")
-      }
-
-      dataFiles
-    } else {
-
-      getLog.warn(s"data input location '${dataInputDirectory.getAbsolutePath}' does not exist or is not a directory!")
-
-      List[File]()
-    }
-  }
 
 }
 

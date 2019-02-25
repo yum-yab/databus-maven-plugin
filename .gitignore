@@ -5,5 +5,8 @@ README.md.orig.*
 README.md.toc.*
 pom.xml.versionsBackup
 dbpedia/*/*/src/*/
+dbpedia/*/*/*/
+dbpedia/*/log-*.txt
+example/*/*/*/
 log.txt
 tmpfolder

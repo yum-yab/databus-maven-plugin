@@ -23,25 +23,17 @@ package org.dbpedia.databus
 import org.dbpedia.databus.lib._
 import org.dbpedia.databus.shared.signing
 import better.files._
-import org.apache.jena.rdf.model.{Model, ModelFactory}
 import org.apache.maven.plugin.{AbstractMojo, MojoExecutionException}
 import org.apache.maven.plugins.annotations.{LifecyclePhase, Mojo, Parameter}
 import java.io.{File, FileWriter}
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
 @Mojo(name = "package-export", defaultPhase = LifecyclePhase.PACKAGE)
 class PackageExport extends AbstractMojo with Properties {
 
   /**
-    * The parselogs are written to ${databus.pluginDirectory}/parselogs and then packaged with the data
-    * We keep the parselogs in a separate file, because they can be quite large (repeating the triples that have errors)
     */
-  @Parameter(property = "databus.includeParseLogs", defaultValue = "true")
-  val includeParseLogs: Boolean = true
-
-  @Parameter(property = "databus.deactivateDownloadUrl", defaultValue = "false")
-  val deactivateDownloadUrl = false
+  @Parameter(property = "databus.package.includeParseLogs", defaultValue = "false")
+  val includeParseLogs: Boolean = false
 
   @throws[MojoExecutionException]
   override def execute(): Unit = {
@@ -51,61 +43,92 @@ class PackageExport extends AbstractMojo with Properties {
       return
     }
 
+    if (locations.inputFileList.isEmpty) {
+      getLog.warn(s"${locations.prettyPath(locations.inputVersionDirectory)} is empty, skipping")
+      return
+    }
 
-    if (!dataIdFile.isRegularFile) {
+    if (!locations.buildDataIdFile.isRegularFile) {
 
-      val emptyVersion = if (getListOfInputFiles().isEmpty) s"* ${version} does not contain any files\n" else ""
-
-      getLog.warn(s"${dataIdFile} not found for ${artifactId}, can not package\n" +
+      //val emptyVersion = if (locations.inputFileList.isEmpty) s"* ${version} does not contain any files\n" else ""
+      getLog.warn(s"${locations.prettyPath(locations.buildDataIdFile)} not found for ${artifactId}/${version}, can not package\n" +
         s"fix with:\n" +
-        s"* running mvn prepare-package or mvn databus:metadata first\n" + emptyVersion)
+        s"* running mvn prepare-package or mvn databus:metadata first\n")
       System.exit(-1)
     }
 
+    getLog.info(s"packaging from ${locations.prettyPath(locations.inputVersionDirectory)}")
+    getLog.info(s"packaging to ${locations.prettyPath(locations.packageVersionDirectory)}")
+
     // for each module copy all files to target
-    getListOfInputFiles().foreach { inputFile =>
+    locations.inputFileList.foreach { inputFile =>
 
-      val df = Datafile(inputFile)(getLog)
-      val packageTarget = locations.packageTargetDirectory / df.finalBasename(params.versionToInsert)
+      val df = Datafile(inputFile.toJava)(getLog)
+      val filePackageTarget = locations.packageVersionDirectory / df.finalBasename(params.versionToInsert)
 
-      // check if files exist already
-      if (packageTarget.isRegularFile) {
-
-        val targetHash = signing.sha256Hash(packageTarget)
-        val sourceHash = signing.sha256Hash(inputFile.toScala)
-
-        //overwrite if different, else keep
-        if (targetHash != sourceHash) {
-          inputFile.toScala.copyTo(packageTarget, overwrite = true)
-          getLog.info("packaged (in overwrite mode): " + packageTarget.name)
-        } else {
-          getLog.info("skipped (same file): " + packageTarget.name)
-        }
-
+      // check if files exist already and is same
+      if (filePackageTarget.isRegularFile && sameFile(inputFile, filePackageTarget)) {
+        getLog.info("skipped (same file content): " + filePackageTarget.name)
       } else {
-        inputFile.toScala.copyTo(packageTarget, overwrite = true)
-        getLog.info("packaged: " + packageTarget.name)
+        inputFile.copyTo(filePackageTarget, overwrite = true)
+        getLog.info("packaged (create or overwrite): " + filePackageTarget.name)
+      }
+
+    }
+
+    //todo
+    //Parselogs
+    if (includeParseLogs && locations.buildParselogFile.isRegularFile) {
+      locations.buildParselogFile.copyTo(locations.packageParselogFile, true)
+      getLog.info("packaged from build: " + locations.buildParselogFile.name)
+    }
+
+    // provenance file
+    // extra if, since prov is optional
+    if (locations.inputProvenanceFile.isRegularFile && locations.provenanceFull.nonEmpty) {
+      if (locations.packageProvenanceFile.isRegularFile && sameFile(locations.inputProvenanceFile, locations.packageProvenanceFile)) {
+        getLog.info("skipped (same file content): " + locations.packageProvenanceFile.name)
+      } else {
+        locations.inputProvenanceFile.copyTo(locations.packageProvenanceFile, true)
+        getLog.info("packaged (create or overwrite): " + locations.packageProvenanceFile.name)
       }
     }
 
-    //Parselogs
-    if (includeParseLogs && getParseLogFile().exists()) {
-      val packageTarget = locations.packageTargetDirectory / getParseLogFile().getName
-      getParseLogFile().toScala.copyTo(packageTarget, true)
-      getLog.info("packaged: " + packageTarget.name)
-    }
-
-    if (deactivateDownloadUrl) {
-      //copy
-      Files.copy(dataIdFile.toJava.toPath, dataIdPackageTarget.toJava.toPath)
-
+    // documentation file
+    val content = s"# ${params.label}\n${params.comment}\n\n${params.description}\n\n + ${documentation.trim}"
+    if (locations.packageDocumentationFile.isRegularFile && sameFile(locations.inputMarkdownFile, locations.packageDocumentationFile)) {
+      getLog.info("skipped (same file content): " + locations.packageDocumentationFile.name)
     } else {
-      // resolve
-      val baseResolvedDataId = resolveBaseForRDFFile(dataIdFile, dataIdDownloadLocation)
-      dataIdPackageTarget.writeByteArray((Properties.logo + "\n").getBytes())
-      dataIdPackageTarget.appendByteArray(baseResolvedDataId)
+      locations.packageDocumentationFile.writeByteArray(content.getBytes())
+      getLog.info("packaged (create or overwrite): " + locations.packageDocumentationFile.name)
     }
-    getLog.info("packaged: " + dataIdPackageTarget.name)
-    getLog.info(s"package written to ${packageDirectory}")
+
+    // todo copy group pom?
+    // pom file
+    if (locations.packagePomFile.isRegularFile && sameFile(locations.inputPomFile, locations.packagePomFile)) {
+      getLog.info("skipped (same file content): " + locations.packagePomFile.name)
+    } else {
+      locations.inputPomFile.copyTo(locations.packagePomFile, true)
+      getLog.info("packaged (create or overwrite): " + locations.packagePomFile.name)
+    }
+
+    // dataid
+    if (keepRelativeURIs) {
+      //copy unmodified, always overwrite
+      locations.buildDataIdFile.copyTo(locations.packageDataIdFile, overwrite = true)
+    } else {
+      // resolve uris, always overwrite
+      val baseResolvedDataId = resolveBaseForRDFFile(locations.buildDataIdFile, locations.dataIdDownloadLocation)
+      locations.packageDataIdFile.writeByteArray((Properties.logo + "\n").getBytes())
+      locations.packageDataIdFile.appendByteArray(baseResolvedDataId)
+    }
+    getLog.info(s"packaged (create or overwrite): ${locations.prettyPath(locations.packageDataIdFile)}")
+    getLog.info(s"package written to ${locations.prettyPath(locations.packageVersionDirectory)}")
+  }
+
+  def sameFile(inputFile: better.files.File, filePackageTarget: better.files.File): Boolean = {
+    val targetHash = signing.sha256Hash(filePackageTarget)
+    val sourceHash = signing.sha256Hash(inputFile)
+    targetHash == sourceHash
   }
 }

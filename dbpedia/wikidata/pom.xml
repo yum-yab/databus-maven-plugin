@@ -25,14 +25,14 @@
         <module>mappingbased-properties-reified</module>
         <module>ontology-subclassof</module>
         <module>page</module>
-        <module>properties-reified</module>
-        <module>raw</module>
+        <module>properties</module>
+        <!--module>raw</module-->
         <module>redirects</module>
         <module>references</module>
         <module>revision</module>
         <module>sameas-all-wikis</module>
         <module>sameas-external</module>
-        <module>sameas-wikidata</module>
+        <!--module>sameas-wikidata</module-->
         <module>debug</module>
     </modules>
 
@@ -40,7 +40,8 @@
 
     <properties>
         <databus.tryVersionAsIssuedDate>true</databus.tryVersionAsIssuedDate>
-        <databus.packageDirectory>/media/bigone/25TB/www/downloads.dbpedia.org/repo/lts/${project.groupId}
+        <databus.packageDirectory>
+            /media/bigone/25TB/www/downloads.dbpedia.org/repo/lts/${project.groupId}/${project.artifactId}
         </databus.packageDirectory>
         <databus.downloadUrlPath>
             https://downloads.dbpedia.org/repo/lts/${project.groupId}/${project.artifactId}/${project.version}/
@@ -51,33 +52,36 @@
         <databus.maintainer>https://alismayilov.github.io/webid-ali.ttl#this</databus.maintainer>
         <databus.license>http://purl.oclc.org/NET/rdflicense/cc-by3.0</databus.license>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <databus.changelog><![CDATA[
-# Changelog
-## 2018.07.20 to 2018.11.30
+        <databus.documentation><![CDATA[
+## Origin
+This dataset was extracted using the XML wikidata-dumps available on https://www.wikidata.org/wiki/Wikidata:Database_download
+The extraction is performed using the DBpedia Extraction-Framework available at https://github.com/dbpedia/extraction-framework
+You may find more details on the Wikidata extractions at "Wikidata through the eyes of DBpedia" by Ali Ismayilov, Dimitris Kontokostas, Sören Auer, Jens Lehmann and Sebastian Hellmann.
+You may download the article from http://www.semantic-web-journal.net/content/wikidata-through-eyes-dbpedia-1
+
+## How to contribute
+DBpedia is a community project, help us with this dataset:
+* Extend and/or improve the Wikidata class & ontology mappings at the DBpedia mappings wiki (http://mappings.dbpedia.org)
+* Extend and/or improve the Wikidata json mappings at https://github.com/dbpedia/extraction-framework/blob/master/core/src/main/resources/wikidatar2r.json
+* Improve this documentation in the pom.xml at https://github.com/dbpedia/databus-maven-plugin/tree/master/dbpedia/wikidata/pom.xml
+* Improve the software at: https://github.com/dbpedia/extraction-framework
+
+## Known Issues
+* RDF parsing and sorting failed for artifacts rediects, references, raw and sameas*
+* we are attempting to switch from rapper to Sansa-Stack: http://sansa-stack.net/sansa-parser-performance-improved/
+
+## Group Changelog
+### 2018.07.20 to 2018.11.30
 * were created as new modular releases, some issues remain
+* removed wikidata-sameas
+* removed raw for now
 * mappingbased objects are not cleaned
 * we used rapper 2.0.14 to parse and `LC_ALL=C sort` to sort and ascii2uni -a U to unescape unicdoe
 characters
 * link to Wikimedia dump version is missing
 ## 2018.10.01
 * deleted due to bzip2 non-recoverable bad blocks
-        ]]></databus.changelog>
-        <databus.docfooter><![CDATA[
-## How to contribute
-TODO bad docu, i.e. missing links where to add the mappings, paper, etc.
-
-DBpedia is a community project, help us with this dataset:
-* improve the software at: https://github.com/dbpedia/extraction-framework
-* improve this documentation in the pom.xml at
-https://github.com/dbpedia/databus-maven-plugin/tree/master/dbpedia/wikidata/pom.xml
-
-
-## Origin:
-This dataset was extracted using the wikidata-dumps available on
-https://www.wikidata.org/wiki/Wikidata:Database_download
-using the DBpedia Extraction-Framework available at https://github.com/dbpedia/extraction-framework
-For more technical information on how these datasets were generated, please visit http://dev.dbpedia.org
-        ]]></databus.docfooter>
+        ]]></databus.documentation>
 
     </properties>
 
