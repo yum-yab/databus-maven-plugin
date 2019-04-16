@@ -1,0 +1,25 @@
+#! /bin/bash
+#Syntax synthdatagen srcdirectory srcversion date
+
+generateSynthFile() {
+	filename=$(basename $1)
+	echo "Generating synth-file ${filename}"
+
+	cat $1 | sed "s/\(<.*> <.*\)\([0-9]\{4\}\.[0-9]\{2\}\.[0-9]\{2\}\)\(> .* \.\)/\1$date\3/" > $2/$filename
+}
+
+date=$3
+
+for artifact in $1/*; do
+	if [ -d $artifact ]
+	then
+		if ! [ -d $artifact/$date/ ]
+		then
+			mkdir $artifact/$date/
+		fi
+		for file in $artifact/$2/*.ttl; do
+			generateSynthFile $file $artifact/$date
+		done
+	fi
+done
+

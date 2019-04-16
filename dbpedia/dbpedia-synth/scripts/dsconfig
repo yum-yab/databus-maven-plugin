@@ -1,0 +1,19 @@
+#! /bin/bash
+
+# Arrays of mappings and generic artifacts and the content variants
+mappingsArtifacts=("geo-coordinates-mappingbased" "specific-mappingbased-properties")
+
+genericArtifacts=("disambiguations" "homepages")
+
+contentVariants=("lang=de" "lang=en")
+
+# The URL to the synth 
+
+synthURL="https://downloads.dbpedia.org/tmpdev/dbpedia-synth"
+
+# The directories relevant for this script: scriptdir with scripts in it and targetdir
+targetdir="/media/bigone/25TB/userstorage/denis/synth-test/testtarget"
+
+scriptdir="/media/bigone/25TB/userstorage/denis/synth-test/databus-maven-plugin/dbpedia/dbpedia-synth/scripts"
+
+databusdir="/media/bigone/25TB/userstorage/denis/synth-test/databus-maven-plugin"

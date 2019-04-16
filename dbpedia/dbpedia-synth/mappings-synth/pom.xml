@@ -11,7 +11,7 @@
     <groupId>mappings-synth</groupId>
     <artifactId>common-metadata</artifactId>
     <packaging>pom</packaging>
-    <version>2019.03.04</version>
+    <version>2019.03.27</version>
     <modules>
         <module>specific-mappingbased-properties</module>
         <module>geo-coordinates-mappingbased</module>
@@ -26,7 +26,7 @@
 		https://downloads.dbpedia.org/tmpdev/dbpedia-synth/${project.groupId}/${project.artifactId}/${project.version}/
 	</databus.downloadUrlPath>
 	<databus.deployRepoURL>https://databus.dbpedia.org/testrepo</databus.deployRepoURL>
-	<databus.inputDirectory>/media/bigone/25TB/userstorage/denis/synth-test/${project.groupId}/${project.artifactId}/</databus.inputDirectory>
+	<databus.inputDirectory>/media/bigone/25TB/userstorage/denis/synth-test/testtarget/${project.groupId}/${project.artifactId}/</databus.inputDirectory>
 	<databus.publisher>https://yum-yab.github.io/webid.ttl#this</databus.publisher>
         <databus.maintainer>https://termilion.github.io/webid.ttl#this</databus.maintainer>
         <databus.license>http://purl.oclc.org/NET/rdflicense/cc-by3.0</databus.license>

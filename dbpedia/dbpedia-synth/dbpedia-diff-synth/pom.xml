@@ -8,13 +8,15 @@
         <version>1.3-SNAPSHOT</version>
     </parent>
 
-    <groupId>generic-synth</groupId>
+    <groupId>dbpedia-diff-synth</groupId>
     <artifactId>common-metadata</artifactId>
     <packaging>pom</packaging>
     <version>2019.03.27</version>
     <modules>
-        <module>disambiguations</module>
-        <module>homepages</module>
+        <module>specific-mappingbased-properties-diff</module>
+	<module>geo-coordinates-mappingbased-diff</module>
+	<module>homepages-diff</module>
+	<module>disambiguations-diff</module>
     </modules>
     <properties>
         <databus.tryVersionAsIssuedDate>false</databus.tryVersionAsIssuedDate>
