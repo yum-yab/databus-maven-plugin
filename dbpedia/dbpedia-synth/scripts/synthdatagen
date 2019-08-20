@@ -5,7 +5,7 @@ generateSynthFile() {
 	filename=$(basename $1)
 	echo "Generating synth-file ${filename}"
 
-	cat $1 | sed "s/\(<.*> <.*\)\([0-9]\{4\}\.[0-9]\{2\}\.[0-9]\{2\}\)\(> .* \.\)/\1$date\3/" > $2/$filename
+	lbzcat $1 | sed "s/\(<.*> <.*\)\([0-9]\{4\}\.[0-9]\{2\}\.[0-9]\{2\}\)\(> .* \.\)/\1$date\3/" | pbzip2 > $2/$filename
 }
 
 date=$3
@@ -17,7 +17,7 @@ for artifact in $1/*; do
 		then
 			mkdir $artifact/$date/
 		fi
-		for file in $artifact/$2/*.ttl; do
+		for file in $artifact/$2/*.ttl.bz2; do
 			generateSynthFile $file $artifact/$date
 		done
 	fi

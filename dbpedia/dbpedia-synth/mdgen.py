@@ -8,7 +8,7 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("sourcedir", help="The source-directory. Here schould be the directorys like mappings and generic.")
+parser.add_argument("sourcedir", help="The source-directory. Here should be the directorys like mappings and generic.")
 args = parser.parse_args()
 
 
