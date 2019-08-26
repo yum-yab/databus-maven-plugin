@@ -32,8 +32,8 @@ cd $startdir
 date=$(date +%Y.%m.%d)
 
 for groupId in "${groupIds[@]}"; do
-	# source_version is the oldest version
-	source_version=$(ls ${groupId}/* | grep '^[0-9]\{4\}.[0-9]\{2\}.[0-9]\{2\}$' | sort -u | head -1)
+	# source_version is the latest version
+	source_version=$(ls ${groupId}/* | grep '^[0-9]\{4\}.[0-9]\{2\}.[0-9]\{2\}$' | sort -u | tail -1)
 	echo "Generating Synth-Data for ${groupId} with base-version $source_version."
 	generateSynthData $groupId $source_version $date
 	#releaseGroup $groupId $date
